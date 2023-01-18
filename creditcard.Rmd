@@ -1,0 +1,264 @@
+---
+title: "Credit card Fraud"
+author: "Sayantika sengupta"
+date: "2022-12-24"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Introduction:
+
+### Problem statenent:
+
+
+
+>"Credit Card Frauds are the cases of using someone else's credit cards for financial transactions without the information of the card owner. Credit Cards were made available inorder for the people to increase their buying power, it is an agreement with your bank that lets the user use the money lended by the bank in exchange for the repayment of this lended money on the due date or incur interest charges. With the rise in the e-commerce and the recent boom of OTT platforms during the Coronavirus Pandemic, use of credit cards has risen exponentially along with other payment processes. As all the things in the nature are binary, cases of credit card frauds has also achieved high numbers. Global economy pays the price of more than $ 24 billion per year due to these frauds. Thus, it becomes essential to solve this problem and as a result a lot of startups have been born into this \$ 30 billion industry. Thus, building automated models for such a rising problem statement is necessary and AI - ML is the key for it!"
+
+### Our aim is to :
+* Classify and see if the credit card transaction is fraudulent or genuine.
+* This is an *unsupervised learning* problem which does the _*Binary Classification*_.
+
+## Introduction to the data:
+
+### Dataset Attributes:
+* _*V1 - V28*_ : Numerical features that are a result of PCA transformation.
+* *_Time_*: Seconds elapsed between each transaction and the 1st transaction.
+* *_Amount_*: Transaction amount.
+* *_Class_*: Fraud or otherwise (1 or 0)
+
+### Collection of the dataset:
+
+```{r,echo=TRUE}
+system.time(df<-read.csv("/home/sayantika/Desktop/Project/creditcard.csv"))
+head(df)
+nrow(df)
+```
+
+### Data Information:
+
+```{r,echo=FALSE}
+#summary(df)
+ncol(df)
+nrow(df)
+colMeans(df)
+```
+
+### Fraud data:
+```{r,echo=TRUE}
+fraud = df[df$Class ==1,]
+summary(fraud)
+colMeans(fraud)
+nrow(fraud)
+```
+
+### Genuine data:
+```{r,echo=TRUE}
+nofraud = df[df$Class == 0, ]
+summary(nofraud)
+colMeans(nofraud)
+nrow(nofraud)
+```
+
+### Realisations:
+* From the column means of fraud and genuine cases, we have For No Fraud cases, V1 - V28 mean values are almost 0 for all the cases. Mean Amount, 88.29, is less than the mean transaction amount, 122.21, of the Fraud cases.
+* Time taken for No Fraud transactions is more than those for Fraud transactions.
+
+These can be some indications of fraud detection.
+
+## Data Visualisation
+
+### Target data visualisation:
+We now will try to visualize the two target dataset.
+```{r, echo=TRUE}
+library(ggplot2)
+ggplot(df,aes(x = factor(Class),fill = factor(Class)))+
+  geom_bar(width = 1)+
+  coord_polar(theta = "y")
+ggplot(df,aes(x = factor(Class),fill = factor(Class)))+
+  geom_bar(width = 1)
+```
+
+As we can see :
+* The data is highly unbalanced.
+* Due to highly unbalanced data, the classification model will bias its prediction towards the majority class, No Fraud.
+* We need to balance the data to do the analysis.
+
+## Feature selection for modeling:
+
+We shall use correlation matrix to select features required for modeling.
+
+### Correlation matrix:
+```{r, echo=TRUE}
+library(ggcorrplot)
+corplot<-cor(df)
+ggcorrplot(corplot)
+```
+* For feature selection, we will exclude the features having correlation values between [-0.1,0.1].
+* V4, V11 are positively correlated and V7, V3, V16, V10, V12, V14, V17 are negatively correlated with the Class feature.
+
+### ANOVA Test:
+
+```{r,echo=TRUE}
+ANOV<-aov(Class~V1+V2+V3+V4+V5+V6+V7+V8+V9+V10+V11+V12+V13+V14+V15+V16+V17+V18+V19+V20+V21+V22+V23+V24+V25+V26+V27+V28+Amount, data = df)
+summary(ANOV)
+```
+
+Here we will take all the significant variables.As they are not same with the correlation matrix, we will right two models based on the correlation matrix, and ANOVA test.
+
+## Dataset based on Correlation matrix:
+
+### Dataset based on Correlation matrix:
+```{r,echo=TRUE}
+df1=data.frame(df$V3, df$V4, df$V7,df$V10,df$V11,df$V12,df$V14,df$V16,df$V17,df$Class)
+head(df1)
+ncol(df1)
+```
+
+### Dataset based on ANOVA test:
+```{r,echo=TRUE}
+df2=data.frame(df$V1,df$V2,df$V3, df$V4,df$V5,df$V6, df$V7,df$V8,df$V9,df$V10,df$V11,df$V12,df$V13,df$V14,df$V16,df$V17,df$V18,df$V19,df$V20,df$V21,df$V24,df$V26,df$V27,df$V28,df$Class)
+head(df2)
+```
+
+## Data Balancing:
+
+### Data Balancing for Model based on Correlation Plot :
+
+```{r,echo=TRUE}
+library(knitr)
+suppressMessages(library(dplyr))
+suppressMessages(library(ROSE))
+predictor_variables <- df1[,-10] # Select everything except response
+response_variable <- df1$Class 
+data_balanced_both1 <- ovun.sample(df.Class ~ ., data = df1, method = "both", p=0.5,                             N=1000, seed = 1)$data
+#data_balanced_both$df.Class
+```
+
+### Data Balancing for Model based on ANOVA test :
+
+```{r,echo=TRUE}
+library(knitr)
+suppressMessages(library(dplyr))
+suppressMessages(library(ROSE))
+predictor_variables <- df2[,-10] # Select everything except response
+response_variable <- df2$Class 
+data_balanced_both2 <- ovun.sample(df.Class ~ ., data = df2, method = "both", p=0.5,                             N=1000, seed = 1)$data
+#data_balanced_both$df.Class
+```
+
+Calculation for Data Balancing :
+Sampling Strategy : It is a ratio which is the common parameter for oversampling and undersampling.
+Sampling Strategy : ( Samples of Minority Class ) / ( Samples of Majority Class )
+In this case,
+
+Majority Class : No Fraud Cases : 284315 samples
+Minority Class : Fraud Cases : 492 samples
+
+##### Undersampling : Trim down the majority class samples
+Sampling_Strategy = 0.1
+0.1 = ( 492 ) / Majority Class Samples
+After undersampling,
+
+Majority Class : No Fraud Cases : 4920 samples
+Minority Class : Fraud Cases : 492 samples
+
+#### Oversampling : Increase the minority class samples
+Sampling_Strategy = 0.5
+0.5 = ( Minority Class Samples ) / 4920
+After oversampling,
+
+Majority Class : No Fraud Cases : 4920 samples
+Minority Class : Fraud Cases : 2460 samples
+Final Class Samples :
+
+Majority Class : No Fraud Cases : 4920 samples
+Minority Class : Fraud Cases : 2460 samples
+
+* We have duplicated the data for imbalnced data to deal with the potential bias in the predictions.
+Hence evaluation of the model using accuracy would be wrong.
+* We are going to use confusion matrix, ROC-AUC graph and ROC-AUC score for model evaluation.
+
+## Data Modelling:
+
+### Data modeling for Model based on Correlation Plot :
+
+```{r,echo=FALSE}
+library(caTools)
+set.seed(1)
+sample <- sample.split(data_balanced_both1, SplitRatio = 0.8)
+train1  <- subset(data_balanced_both1, sample == TRUE)
+test1   <- subset(data_balanced_both1, sample == FALSE)
+```
+
+```{r,echo=TRUE}
+dim(train1)
+dim(test1)
+```
+
+#### Logistic Regression:
+```{r,echo=FALSE}
+library(caTools)
+logistic_model_1 <- glm(df.Class~ ., data=train1, family="binomial")
+summary(logistic_model_1)
+```
+Prediction based on the model:
+
+#### Confusion matrix:
+```{r, echo=FALSE}
+predict_reg1 <- predict(logistic_model_1 , 
+                       test1, type = "response")
+predict_reg1 <- ifelse(predict_reg1 >0.5, 1, 0)
+table(test1$df.Class, predict_reg1)
+```
+#### Roc-Auc score:
+```{r, echo=FALSE}
+library(ROCR) 
+ROCPred <- prediction(predict_reg1, test1$df.Class) 
+ROCPer <- performance(ROCPred, measure = "tpr", 
+                             x.measure = "fpr")
+   
+auc <- performance(ROCPred, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+```
+### Data modeling for Model based on ANOVA :
+```{r, echo=TRUE}
+library(caTools)
+set.seed(1)
+sample <- sample.split(data_balanced_both2, SplitRatio = 0.8)
+train2  <- subset(data_balanced_both2, sample == TRUE)
+test2   <- subset(data_balanced_both2, sample == FALSE)
+colnames(train2)
+```
+#### Logistic Regression:
+```{r,echo=FALSE}
+library(caTools)
+logistic_model_2 <- glm(df.Class~ ., data=train2, family="binomial")
+summary(logistic_model_2)
+```
+
+Prediction based on the model:
+
+#### Confusion matrix:
+```{r, echo=FALSE}
+predict_reg2 <- predict(logistic_model_2 , 
+                       test2, type = "response")
+predict_reg2 <- ifelse(predict_reg2 >0.5, 1, 0)
+table(test2$df.Class, predict_reg2)
+```
+
+
+#### Roc-Auc score:
+```{r, echo=FALSE}
+library(ROCR) 
+ROCPred <- prediction(predict_reg2, test2$df.Class) 
+ROCPer <- performance(ROCPred, measure = "tpr", 
+                             x.measure = "fpr")
+   
+auc <- performance(ROCPred, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+```
